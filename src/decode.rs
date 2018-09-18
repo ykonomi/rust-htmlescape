@@ -118,8 +118,12 @@ pub fn decode_html_rw<R: BufRead, W: Write>(reader: R, writer: &mut W) -> Result
             }
             Named if c == ';' => {
                 state = Normal;
-                let ch = try_parse!(decode_named_entity(&buf), good_pos);
-                try_dec_io!(write_char(writer, ch), good_pos);
+                {
+                    let s = try_parse!(decode_named_entity(&buf), good_pos);
+                    for ch in s.chars() {
+                        try_dec_io!(write_char(writer, ch), good_pos);
+                    }
+                }
                 buf.clear();
             }
             Named => buf.push(c),
@@ -188,7 +192,7 @@ fn is_hex_digit(c: char) -> bool {
     is_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 }
 
-fn decode_named_entity(entity: &str) -> Result<char, DecodeErrKind> {
+fn decode_named_entity(entity: &str) -> Result<&str, DecodeErrKind> {
     match NAMED_ENTITIES.binary_search_by(|&(ent, _)| ent.cmp(entity)) {
         Err(..) => Err(UnknownEntity),
         Ok(idx) => {
